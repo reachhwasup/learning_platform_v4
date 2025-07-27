@@ -1,5 +1,5 @@
 /*
-File: /learning_platform_v3/assets/css/style.css (FINAL & COMPLETE)
+File: /assets/css/style.css (FINAL & COMPLETE)
 Description: This file contains all necessary styles for the entire platform.
 */
 
@@ -105,7 +105,7 @@ Description: This file contains all necessary styles for the entire platform.
     box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
 
-/* --- JS Helper --- */
-.hidden {
+/* --- JS Helper .hidden --- */
+.module-card.hidden {
     display: none !important;
 }

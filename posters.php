@@ -29,15 +29,13 @@ require_once 'includes/header.php';
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <?php foreach ($posters as $poster): ?>
                 <div class="bg-white rounded-lg shadow-lg overflow-hidden group transform hover:-translate-y-2 transition-transform duration-300">
-                    <div class="relative">
-                        <img src="uploads/posters/<?= escape($poster['image_path']) ?>" alt="<?= escape($poster['title']) ?>" class="w-full h-64 object-cover">
-                        <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <a href="uploads/posters/<?= escape($poster['image_path']) ?>" download class="text-white bg-primary hover:bg-primary-dark py-2 px-4 rounded-lg flex items-center gap-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                Download
-                            </a>
+                    <!-- The image is now a link that opens in a new tab -->
+                    <a href="uploads/posters/<?= escape($poster['image_path']) ?>" target="_blank">
+                        <div class="relative">
+                            <img src="uploads/posters/<?= escape($poster['image_path']) ?>" alt="<?= escape($poster['title']) ?>" class="w-full h-64 object-cover">
+                            <!-- The download button overlay has been removed -->
                         </div>
-                    </div>
+                    </a>
                     <div class="p-6">
                         <p class="text-sm text-gray-500 mb-1"><?= $poster['assigned_month'] ? date('F Y', strtotime($poster['assigned_month'])) : 'Unassigned' ?></p>
                         <h3 class="text-xl font-semibold text-gray-900 mb-2 truncate"><?= escape($poster['title']) ?></h3>

@@ -117,6 +117,13 @@ require_once 'includes/header.php';
                 <p><strong class="font-medium text-gray-700">Email:</strong> <?= escape($user['email']) ?></p>
                 <p><strong class="font-medium text-gray-700">Department:</strong> <?= escape($user['department_name']) ?></p>
             </div>
+
+            <!-- NEW: Logout Button -->
+            <div class="text-center mt-6 border-t pt-6">
+                <a href="api/auth/logout.php" class="bg-red-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-red-700 transition-colors w-full block">
+                    Logout
+                </a>
+            </div>
         </div>
     </div>
 </div>
