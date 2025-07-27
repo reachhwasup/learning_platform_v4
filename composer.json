@@ -1,0 +1,14 @@
+{
+    "name": "your-vendor/learning-platform",
+    "description": "Information Security Awareness Learning Platform.",
+    "type": "project",
+    "require": {
+        "phpoffice/phpspreadsheet": "^1.23"
+    },
+    "authors": [
+        {
+            "name": "Your Name",
+            "email": "you@example.com"
+        }
+    ]
+}
