@@ -1,5 +1,5 @@
 <?php
-$page_title = 'My Learning Dashboard';
+$page_title = 'Information Security Awareness Training';
 require_once 'includes/auth_check.php';
 require_once 'includes/db_connect.php';
 
@@ -50,7 +50,7 @@ require_once 'includes/header.php';
     </div>
 
     <div class="flex justify-between items-center mt-8 mb-4">
-        <h2 class="text-2xl font-semibold text-gray-900">Your Learning Path</h2>
+        <h2 class="text-2xl font-semibold text-gray-900">Security Awareness Training Modules</h2>
         <!-- View Switcher Buttons -->
         <div class="view-switcher">
             <button id="grid-view-btn" class="view-btn active" title="Grid View">

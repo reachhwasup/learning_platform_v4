@@ -194,7 +194,7 @@ require_once 'includes/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const videoContainer = document.getElementById('video-player-container');
+    const videoContainer = document.getElementById('video-player-container'); 
     const video = document.getElementById('learning-video');
     const customControls = document.getElementById('custom-controls');
     const playPauseBtn = document.getElementById('play-pause-btn');
