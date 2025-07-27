@@ -11,10 +11,7 @@ require_once 'functions.php';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- NEW: Link to your custom stylesheet -->
-    <link rel="stylesheet" href="assets/css/style.css">
-
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= time() ?>"> <!-- Cache-busting -->
     <script>
         tailwind.config = {
             theme: {
@@ -28,7 +25,7 @@ require_once 'functions.php';
 </head>
 <body class="h-full">
 <div class="flex h-screen bg-gray-100">
-    <?php require_once 'user_sidebar.php'; // The sidebar is now responsive ?>
+    <?php require_once 'user_sidebar.php'; // This includes the responsive user sidebar ?>
     <div class="flex-1 flex flex-col overflow-hidden">
         <header class="bg-white shadow-sm">
             <div class="w-full px-4 sm:px-6 lg:px-8">

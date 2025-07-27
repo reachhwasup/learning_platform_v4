@@ -3,10 +3,14 @@ $page_title = 'Manage Users';
 require_once 'includes/auth_check.php';
 require_once '../includes/db_connect.php';
 
-// --- Pagination Logic for Normal Users ---
+// --- Filter & Pagination Logic ---
 $records_per_page = 10;
 $current_page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($current_page - 1) * $records_per_page;
+
+// Get filter values from the URL
+$filter_dept = isset($_GET['department']) && $_GET['department'] !== '' ? (int)$_GET['department'] : null;
+$filter_status = isset($_GET['status']) && in_array($_GET['status'], ['active', 'inactive']) ? $_GET['status'] : null;
 
 try {
     // Get total number of modules for progress calculation
@@ -14,11 +18,28 @@ try {
     $total_modules = $total_modules_stmt->fetchColumn();
     $total_modules = $total_modules > 0 ? $total_modules : 1; // Avoid division by zero
 
-    // --- Fetch Normal Users with Pagination and Progress ---
-    $total_normal_users_stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'user'");
-    $total_records = $total_normal_users_stmt->fetchColumn();
+    // --- Build the WHERE clause for filtering Normal Users---
+    $where_clauses = ["u.role = 'user'"];
+    $params = [];
+
+    if ($filter_dept) {
+        $where_clauses[] = "u.department_id = :dept_id";
+        $params[':dept_id'] = $filter_dept;
+    }
+    if ($filter_status) {
+        $where_clauses[] = "u.status = :status";
+        $params[':status'] = $filter_status;
+    }
+    $where_sql = "WHERE " . implode(' AND ', $where_clauses);
+
+    // --- Fetch Total Records for Pagination (with filters) ---
+    $total_records_sql = "SELECT COUNT(*) FROM users u " . $where_sql;
+    $total_records_stmt = $pdo->prepare($total_records_sql);
+    $total_records_stmt->execute($params);
+    $total_records = $total_records_stmt->fetchColumn();
     $total_pages = ceil($total_records / $records_per_page);
 
+    // --- Fetch Normal Users (with filters and pagination) ---
     $sql_users = "SELECT 
                     u.id, u.first_name, u.last_name, u.staff_id, u.role, u.status, d.name as department_name, 
                     (SELECT COUNT(*) FROM user_progress up WHERE up.user_id = u.id) as completed_modules,
@@ -35,16 +56,22 @@ try {
                           ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY completed_at DESC) as rn
                       FROM final_assessments
                   ) AS latest_fa ON u.id = latest_fa.user_id AND latest_fa.rn = 1
-                  WHERE u.role = 'user'
+                  {$where_sql}
                   ORDER BY u.first_name, u.last_name
                   LIMIT :limit OFFSET :offset";
+                  
     $stmt_users = $pdo->prepare($sql_users);
+    // Bind filter params
+    foreach ($params as $key => &$val) { // Pass by reference
+        $stmt_users->bindParam($key, $val);
+    }
+    // Bind pagination params
     $stmt_users->bindValue(':limit', $records_per_page, PDO::PARAM_INT);
     $stmt_users->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt_users->execute();
     $normal_users = $stmt_users->fetchAll();
 
-    // --- Fetch All Admin Users (no pagination needed) ---
+    // --- Fetch All Admin Users (no filters needed) ---
     $sql_admins = "SELECT u.id, u.first_name, u.last_name, u.email, u.staff_id, u.role, u.status 
                    FROM users u 
                    WHERE u.role = 'admin'
@@ -52,7 +79,7 @@ try {
     $stmt_admins = $pdo->query($sql_admins);
     $admin_users = $stmt_admins->fetchAll();
     
-    // Fetch all departments for the add/edit form
+    // Fetch all departments for forms
     $departments = $pdo->query("SELECT id, name FROM departments ORDER BY name ASC")->fetchAll();
 
 } catch (PDOException $e) {
@@ -67,19 +94,49 @@ require_once 'includes/header.php';
 ?>
 
 <div class="container mx-auto">
-    <div class="flex justify-end mb-6">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-semibold text-gray-900">User Management</h2>
         <button id="add-user-btn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors">
             + Add New User
         </button>
     </div>
 
+    <!-- Filter Form -->
+    <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+        <form method="GET" action="manage_users.php" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label for="department" class="block text-sm font-medium text-gray-700">Filter by Department</label>
+                <select name="department" id="department" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    <option value="">All Departments</option>
+                    <?php foreach ($departments as $dept): ?>
+                        <option value="<?= $dept['id'] ?>" <?= ($filter_dept == $dept['id']) ? 'selected' : '' ?>>
+                            <?= escape($dept['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label for="status" class="block text-sm font-medium text-gray-700">Filter by Status</label>
+                <select name="status" id="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    <option value="">All Statuses</option>
+                    <option value="active" <?= ($filter_status === 'active') ? 'selected' : '' ?>>Active</option>
+                    <option value="inactive" <?= ($filter_status === 'inactive') ? 'selected' : '' ?>>Inactive</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="bg-primary text-white font-semibold py-2 px-4 rounded-lg hover:bg-primary-dark transition-colors w-full md:w-auto">Filter</button>
+            </div>
+        </form>
+    </div>
+
     <!-- Normal Users Table -->
-    <h2 class="text-2xl font-semibold text-gray-900 mb-4">Normal User Management</h2>
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">Normal Users</h3>
     <div class="bg-white shadow-md rounded-lg overflow-x-auto">
         <table class="min-w-full leading-normal">
             <thead class="bg-gray-200">
                 <tr>
                     <th class="px-5 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Department</th>
                     <th class="px-5 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Progress</th>
                     <th class="px-5 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Exam Attempts</th>
                     <th class="px-5 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
@@ -88,7 +145,7 @@ require_once 'includes/header.php';
             </thead>
             <tbody>
                 <?php if (empty($normal_users)): ?>
-                    <tr><td colspan="5" class="text-center py-10 text-gray-500">No normal users found.</td></tr>
+                    <tr><td colspan="6" class="text-center py-10 text-gray-500">No users found matching your criteria.</td></tr>
                 <?php else: ?>
                     <?php foreach ($normal_users as $user): ?>
                         <?php $progress_percentage = round(($user['completed_modules'] / $total_modules) * 100); ?>
@@ -98,13 +155,14 @@ require_once 'includes/header.php';
                                 <p class="text-gray-600 whitespace-no-wrap"><?= escape($user['staff_id']) ?></p>
                             </td>
                             <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                <p class="text-gray-900 whitespace-no-wrap"><?= escape($user['department_name'] ?? 'N/A') ?></p>
+                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <div class="w-full bg-gray-200 rounded-full">
                                     <div class="bg-blue-500 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full" style="width: <?= $progress_percentage ?>%"><?= $progress_percentage ?>%</div>
                                 </div>
                             </td>
-                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center font-semibold">
-                                <?= $user['exam_attempts'] ?>
-                            </td>
+                            <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center font-semibold"><?= $user['exam_attempts'] ?></td>
                             <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <span class="relative inline-block px-3 py-1 font-semibold leading-tight <?= $user['status'] === 'active' ? 'text-green-900' : 'text-red-900' ?>">
                                     <span aria-hidden class="absolute inset-0 <?= $user['status'] === 'active' ? 'bg-green-200' : 'bg-red-200' ?> opacity-50 rounded-full"></span>
@@ -123,24 +181,26 @@ require_once 'includes/header.php';
             </tbody>
         </table>
     </div>
+    
     <!-- Pagination for Normal Users -->
     <?php if ($total_pages > 1): ?>
         <div class="py-6 flex justify-center">
             <nav class="flex rounded-md shadow">
-                <a href="?page=<?= max(1, $current_page - 1) ?>" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-l-md hover:bg-gray-50">Previous</a>
+                <?php $pagination_params = http_build_query(['department' => $filter_dept, 'status' => $filter_status]); ?>
+                <a href="?page=<?= max(1, $current_page - 1) ?>&<?= $pagination_params ?>" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-l-md hover:bg-gray-50">Previous</a>
                 <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                    <a href="?page=<?= $i ?>" class="px-4 py-2 text-sm font-medium <?= $i == $current_page ? 'bg-primary text-white' : 'text-gray-700 bg-white hover:bg-gray-50' ?>"><?= $i ?></a>
+                    <a href="?page=<?= $i ?>&<?= $pagination_params ?>" class="px-4 py-2 text-sm font-medium <?= $i == $current_page ? 'bg-primary text-white' : 'text-gray-700 bg-white hover:bg-gray-50' ?>"><?= $i ?></a>
                 <?php endfor; ?>
-                <a href="?page=<?= min($total_pages, $current_page + 1) ?>" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-r-md hover:bg-gray-50">Next</a>
+                <a href="?page=<?= min($total_pages, $current_page + 1) ?>&<?= $pagination_params ?>" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-r-md hover:bg-gray-50">Next</a>
             </nav>
         </div>
     <?php endif; ?>
 
     <!-- Admin Users Table -->
-    <h2 class="text-2xl font-semibold text-gray-900 mt-12 mb-4">Administrator Management</h2>
+    <h3 class="text-xl font-semibold text-gray-800 mt-12 mb-4">Administrators</h3>
     <div class="bg-white shadow-md rounded-lg overflow-x-auto">
         <table class="min-w-full leading-normal">
-             <thead class="bg-gray-200">
+            <thead class="bg-gray-200">
                 <tr>
                     <th class="px-5 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
                     <th class="px-5 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Staff ID / Email</th>
@@ -183,15 +243,14 @@ require_once 'includes/header.php';
 </div>
 
 <!-- Add/Edit User Modal -->
-<div id="user-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+<div id="user-modal" class="fixed z-10 inset-0 overflow-y-auto hidden">
     <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
         <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
             <form id="user-form">
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <h3 class="text-lg leading-6 font-medium text-gray-900" id="user-modal-title">Add New User</h3>
-                    <div id="user-info-readonly" class="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200 hidden">
-                    </div>
+                    <div id="user-info-readonly" class="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200 hidden"></div>
                     <div class="mt-4 space-y-4">
                         <input type="hidden" name="user_id" id="user_id">
                         <input type="hidden" name="action" id="user-form-action">
@@ -228,8 +287,8 @@ require_once 'includes/header.php';
                 </div>
                 <div id="user-form-feedback" class="px-6 py-2 text-sm text-red-600"></div>
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Save</button>
-                    <button type="button" id="user-cancel-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm">Cancel</button>
+                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark">Save</button>
+                    <button type="button" id="user-cancel-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
                 </div>
             </form>
         </div>

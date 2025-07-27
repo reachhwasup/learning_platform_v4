@@ -24,7 +24,9 @@ try {
 
     // Fetch all questions and user's answers for this specific assessment
     $sql_details = "SELECT 
+                        q.id as question_id,
                         q.question_text, 
+                        qo.id as option_id,
                         qo.option_text, 
                         qo.is_correct, 
                         (SELECT COUNT(*) FROM user_answers ua WHERE ua.assessment_id = ? AND ua.question_id = q.id AND ua.selected_option_id = qo.id) as was_selected
@@ -34,7 +36,15 @@ try {
                     ORDER BY q.id, qo.id";
     $stmt_details = $pdo->prepare($sql_details);
     $stmt_details->execute([$assessment_id, $assessment_id]);
-    $details = $stmt_details->fetchAll(PDO::FETCH_GROUP); // Group results by question_text
+    $details_raw = $stmt_details->fetchAll();
+
+    // Group results by question ID for easier processing
+    $details = [];
+    foreach ($details_raw as $row) {
+        $details[$row['question_id']]['question_text'] = $row['question_text'];
+        $details[$row['question_id']]['options'][] = $row;
+    }
+
 
 } catch (PDOException $e) {
     error_log("View Exam Details Error: " . $e->getMessage());
@@ -57,38 +67,44 @@ require_once 'includes/header.php';
             </div>
             <div class="text-right">
                 <p class="text-sm text-gray-500">Final Score</p>
-                <p class="text-3xl font-bold <?= $assessment['status'] === 'passed' ? 'text-green-600' : 'text-red-600' ?>"><?= escape($assessment['score']) ?> Points</p>
+                <p class="text-3xl font-bold <?= $assessment['status'] === 'passed' ? 'text-green-600' : 'text-red-600' ?>"><?= (int)$assessment['score'] ?> Points</p>
             </div>
         </div>
 
         <div class="space-y-8">
             <?php if (empty($details)): ?>
-                <p class="text-center text-gray-500 py-10">No detailed answers were recorded for this exam attempt. This may be because it was taken with an older version of the system.</p>
+                <p class="text-center text-gray-500 py-10">No detailed answers were recorded for this exam attempt.</p>
             <?php else: ?>
-                <?php foreach ($details as $question_text => $options): ?>
-                    <div class="question-block">
-                        <p class="font-semibold text-lg text-gray-800 mb-4"><?= escape($question_text) ?></p>
+                <?php $question_number = 1; ?>
+                <?php foreach ($details as $question_id => $question_data): ?>
+                    <div class="question-block border-t pt-6">
+                        <p class="font-semibold text-lg text-gray-800 mb-4"><?= $question_number++ . '. ' . escape($question_data['question_text']) ?></p>
                         <div class="space-y-2">
-                            <?php foreach ($options as $option): ?>
+                            <?php foreach ($question_data['options'] as $option): ?>
                                 <?php
                                     $li_class = 'p-3 border rounded-lg flex justify-between items-center';
-                                    $user_pick_badge = '';
+                                    $badges = '';
 
-                                    if ($option['was_selected']) {
-                                        $user_pick_badge = '<span class="text-xs font-bold uppercase bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Your Answer</span>';
-                                    }
-
+                                    // Determine highlighting and badges
                                     if ($option['is_correct']) {
-                                        $li_class .= ' bg-green-50 border-green-500';
-                                    } elseif ($option['was_selected'] && !$option['is_correct']) {
-                                        $li_class .= ' bg-red-50 border-red-500';
-                                    } else {
+                                        $li_class .= ' bg-green-50 border-green-500 font-semibold';
+                                        $badges .= '<span class="text-xs font-bold uppercase bg-green-200 text-green-800 px-2 py-1 rounded-full">Correct Answer</span>';
+                                    }
+                                    
+                                    if ($option['was_selected']) {
+                                        if (!$option['is_correct']) {
+                                            $li_class .= ' bg-red-50 border-red-500'; // User's wrong choice
+                                        }
+                                        $badges .= '<span class="ml-2 text-xs font-bold uppercase bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Your Answer</span>';
+                                    }
+                                    
+                                    if (!$option['is_correct'] && !$option['was_selected']) {
                                         $li_class .= ' border-gray-200';
                                     }
                                 ?>
                                 <div class="<?= $li_class ?>">
                                     <span class="text-gray-700"><?= escape($option['option_text']) ?></span>
-                                    <?= $user_pick_badge ?>
+                                    <div><?= $badges ?></div>
                                 </div>
                             <?php endforeach; ?>
                         </div>

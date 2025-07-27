@@ -1,3 +1,23 @@
+/*
+File: /learning_platform_v3/assets/css/style.css (FINAL & COMPLETE)
+Description: This file contains all necessary styles for the entire platform.
+*/
+
+/* --- Base Styles & Variables --- */
+:root {
+    --primary-color: #0052cc;
+    --primary-dark: #0041a3;
+    --secondary-color: #f4f5f7;
+    --accent-color: #ffab00;
+    --light-gray: #f3f4f6;
+    --medium-gray: #e5e7eb;
+    --dark-gray: #1f2937;
+    --success-color: #16a34a;
+    --error-color: #dc2626;
+    --font-family: 'Inter', sans-serif;
+}
+
+/* --- Welcome Banner --- */
 .welcome-banner {
     position: relative;
     height: 250px;
@@ -74,7 +94,7 @@
 }
 
 .view-btn.active {
-    background-color: #0052cc;
+    background-color: var(--primary-color);
     color: #fff;
 }
 

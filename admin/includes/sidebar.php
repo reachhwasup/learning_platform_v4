@@ -1,11 +1,16 @@
 <?php
 /**
- * Admin Panel Sidebar
+ * Admin Panel Sidebar (CORRECTED)
+ *
+ * This version now includes the company logo.
  */
 ?>
 <aside class="w-64 flex-shrink-0 bg-primary text-white flex flex-col">
-    <div class="h-16 flex items-center justify-center text-2xl font-bold border-b border-blue-800">
-        Admin Panel
+    <div class="h-16 flex items-center justify-center px-4 border-b border-blue-800">
+        <!-- NEW: Logo Image -->
+        <a href="index.php">
+            <img src="../assets/images/logo.png" alt="Company Logo" class="h-10">
+        </a>
     </div>
     <nav class="flex-1 px-2 py-4 space-y-2">
         <a href="index.php" class="flex items-center px-4 py-2 rounded-md hover:bg-primary-dark transition-colors">
